@@ -11,23 +11,24 @@
  * Copyright (C) 2016-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
 import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
-import scala.annotation.nowarn
 import scala.collection.immutable
 import scala.collection.JavaConverters._
 import scala.compat.java8.OptionConverters._
 import scala.util.{Failure, Success}
-import com.fasterxml.jackson.annotation.{JsonAutoDetect, JsonCreator, PropertyAccessor}
-import com.fasterxml.jackson.core.{JsonFactory, JsonFactoryBuilder, JsonGenerator, JsonParser, StreamReadConstraints, StreamReadFeature, StreamWriteConstraints, StreamWriteFeature}
-import com.fasterxml.jackson.core.json.{JsonReadFeature, JsonWriteFeature}
-import com.fasterxml.jackson.core.util.{BufferRecycler, JsonRecyclerPools, RecyclerPool}
-import com.fasterxml.jackson.databind.{DeserializationFeature, MapperFeature, Module, ObjectMapper, SerializationFeature}
-import com.fasterxml.jackson.databind.json.JsonMapper
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule
+
+import com.fasterxml.jackson.annotation.{JsonAutoDetect, PropertyAccessor}
 import com.typesafe.config.Config
+import tools.jackson.core.{StreamReadConstraints, StreamReadFeature, StreamWriteConstraints, StreamWriteFeature}
+import tools.jackson.core.json.{JsonFactory, JsonReadFeature, JsonWriteFeature}
+import tools.jackson.core.util.{BufferRecycler, JsonRecyclerPools, RecyclerPool}
+import tools.jackson.databind.{DeserializationFeature, JacksonModule, MapperFeature, ObjectMapper, SerializationFeature}
+import tools.jackson.databind.cfg.DateTimeFeature
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.dataformat.cbor.{CBORFactory, CBORMapper}
 import org.apache.pekko
 import pekko.actor.{ActorSystem, ClassicActorSystemProvider, DynamicAccess, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider}
 import pekko.actor.setup.Setup
@@ -47,7 +48,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
    * The configuration for a given `bindingName`.
    */
   def configForBinding(bindingName: String, systemConfig: Config): Config = {
-    val basePath = "pekko.serialization.jackson216"
+    val basePath = "pekko.serialization.jackson3"
     val baseConf = systemConfig.getConfig(basePath)
     if (systemConfig.hasPath(s"$basePath.$bindingName"))
       systemConfig.getConfig(s"$basePath.$bindingName").withFallback(baseConf)
@@ -73,21 +74,11 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       .maxNestingDepth(config.getInt("write.max-nesting-depth"))
       .build()
 
-    val jsonFactory: JsonFactory = baseJsonFactory match {
+    val factoryBuilder = baseJsonFactory match {
       case Some(factory) =>
-        // Issue #28918 not possible to use new JsonFactoryBuilder(jsonFactory) here.
-        // It doesn't preserve the formatParserFeatures and formatGeneratorFeatures in
-        // CBORFactor. Therefore we use JsonFactory and configure the features with mappedFeature
-        // instead of using JsonFactoryBuilder (new in Jackson 2.10.0).
-        factory.setStreamReadConstraints(streamReadConstraints)
-        factory.setStreamWriteConstraints(streamWriteConstraints)
-        factory.setRecyclerPool(getBufferRecyclerPool(config))
+        factory.rebuild()
       case None =>
-        new JsonFactoryBuilder()
-          .streamReadConstraints(streamReadConstraints)
-          .streamWriteConstraints(streamWriteConstraints)
-          .recyclerPool(getBufferRecyclerPool(config))
-          .build()
+        JsonFactory.builder()
     }
 
     val configuredStreamReadFeatures =
@@ -97,7 +88,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     val streamReadFeatures =
       objectMapperFactory.overrideConfiguredStreamReadFeatures(bindingName, configuredStreamReadFeatures)
     streamReadFeatures.foreach {
-      case (feature, value) => jsonFactory.configure(feature.mappedFeature, value)
+      case (feature, value) => factoryBuilder.configure(feature, value)
     }
 
     val configuredStreamWriteFeatures =
@@ -107,7 +98,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     val streamWriteFeatures =
       objectMapperFactory.overrideConfiguredStreamWriteFeatures(bindingName, configuredStreamWriteFeatures)
     streamWriteFeatures.foreach {
-      case (feature, value) => jsonFactory.configure(feature.mappedFeature, value)
+      case (feature, value) => factoryBuilder.configure(feature, value)
     }
 
     val configuredJsonReadFeatures =
@@ -117,7 +108,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     val jsonReadFeatures =
       objectMapperFactory.overrideConfiguredJsonReadFeatures(bindingName, configuredJsonReadFeatures)
     jsonReadFeatures.foreach {
-      case (feature, value) => jsonFactory.configure(feature.mappedFeature, value)
+      case (feature, value) => factoryBuilder.configure(feature, value)
     }
 
     val configuredJsonWriteFeatures =
@@ -127,17 +118,71 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     val jsonWriteFeatures =
       objectMapperFactory.overrideConfiguredJsonWriteFeatures(bindingName, configuredJsonWriteFeatures)
     jsonWriteFeatures.foreach {
-      case (feature, value) => jsonFactory.configure(feature.mappedFeature, value)
+      case (feature, value) => factoryBuilder.configure(feature, value)
     }
 
-    jsonFactory
+    factoryBuilder
+      .streamReadConstraints(streamReadConstraints)
+      .streamWriteConstraints(streamWriteConstraints)
+      .recyclerPool(getBufferRecyclerPool(config))
+      .build()
+  }
+
+  private def createCBORFactory(
+      bindingName: String,
+      objectMapperFactory: JacksonObjectMapperFactory,
+      config: Config,
+      baseFactory: Option[CBORFactory]): CBORFactory = {
+
+    val streamReadConstraints = StreamReadConstraints.builder()
+      .maxNestingDepth(config.getInt("read.max-nesting-depth"))
+      .maxNumberLength(config.getInt("read.max-number-length"))
+      .maxStringLength(config.getInt("read.max-string-length"))
+      .maxNameLength(config.getInt("read.max-name-length"))
+      .maxDocumentLength(config.getLong("read.max-document-length"))
+      .build()
+
+    val streamWriteConstraints = StreamWriteConstraints.builder()
+      .maxNestingDepth(config.getInt("write.max-nesting-depth"))
+      .build()
+
+    val factoryBuilder = baseFactory match {
+      case Some(factory) =>
+        factory.rebuild()
+      case None =>
+        CBORFactory.builder()
+    }
+
+    val configuredStreamReadFeatures =
+      features(config, "stream-read-features").map {
+        case (enumName, value) => StreamReadFeature.valueOf(enumName) -> value
+      }
+    val streamReadFeatures =
+      objectMapperFactory.overrideConfiguredStreamReadFeatures(bindingName, configuredStreamReadFeatures)
+    streamReadFeatures.foreach {
+      case (feature, value) => factoryBuilder.configure(feature, value)
+    }
+
+    val configuredStreamWriteFeatures =
+      features(config, "stream-write-features").map {
+        case (enumName, value) => StreamWriteFeature.valueOf(enumName) -> value
+      }
+    val streamWriteFeatures =
+      objectMapperFactory.overrideConfiguredStreamWriteFeatures(bindingName, configuredStreamWriteFeatures)
+    streamWriteFeatures.foreach {
+      case (feature, value) => factoryBuilder.configure(feature, value)
+    }
+
+    factoryBuilder
+      .streamReadConstraints(streamReadConstraints)
+      .streamWriteConstraints(streamWriteConstraints)
+      .recyclerPool(getBufferRecyclerPool(config))
+      .build()
   }
 
   private def getBufferRecyclerPool(cfg: Config): RecyclerPool[BufferRecycler] = {
     cfg.getString("buffer-recycler.pool-instance") match {
       case "thread-local" => JsonRecyclerPools.threadLocalPool()
-      case "lock-free" => JsonRecyclerPools.newLockFreePool()
-      case "shared-lock-free" => JsonRecyclerPools.sharedLockFreePool()
       case "concurrent-deque" => JsonRecyclerPools.newConcurrentDequePool()
       case "shared-concurrent-deque" => JsonRecyclerPools.sharedConcurrentDequePool()
       case "bounded" => JsonRecyclerPools.newBoundedPool(cfg.getInt("buffer-recycler.bounded-pool-size"))
@@ -145,65 +190,108 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     }
   }
 
-  @nowarn("msg=deprecated")
   private def configureObjectMapperFeatures(
       bindingName: String,
       objectMapper: ObjectMapper,
       objectMapperFactory: JacksonObjectMapperFactory,
-      config: Config): Unit = {
+      config: Config): ObjectMapper = {
 
+    val builder = objectMapper.rebuild().asInstanceOf[JsonMapper.Builder]
+
+    getSerializationFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    getDeserializationFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    getDateTimeFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    getMapperFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    builder.build()
+  }
+
+  private def configureCBORMapperFeatures(
+                                           bindingName: String,
+                                           mapper: CBORMapper,
+                                           objectMapperFactory: JacksonObjectMapperFactory,
+                                           config: Config): CBORMapper = {
+
+    val builder = mapper.rebuild()
+
+    getSerializationFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    getDeserializationFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    getDateTimeFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    getMapperFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    builder.build()
+  }
+
+  private def getSerializationFeatures(bindingName: String,
+                                       config: Config,
+                                       objectMapperFactory: JacksonObjectMapperFactory): Seq[(SerializationFeature, Boolean)] = {
     val configuredSerializationFeatures =
       features(config, "serialization-features").map {
         case (enumName, value) => SerializationFeature.valueOf(enumName) -> value
       }
-    val serializationFeatures =
-      objectMapperFactory.overrideConfiguredSerializationFeatures(bindingName, configuredSerializationFeatures)
-    serializationFeatures.foreach {
-      case (feature, value) => objectMapper.configure(feature, value)
-    }
+    objectMapperFactory.overrideConfiguredSerializationFeatures(bindingName, configuredSerializationFeatures)
+  }
 
+  private def getDeserializationFeatures(bindingName: String,
+                                         config: Config,
+                                         objectMapperFactory: JacksonObjectMapperFactory): Seq[(DeserializationFeature, Boolean)] = {
     val configuredDeserializationFeatures =
       features(config, "deserialization-features").map {
         case (enumName, value) => DeserializationFeature.valueOf(enumName) -> value
       }
-    val deserializationFeatures =
-      objectMapperFactory.overrideConfiguredDeserializationFeatures(bindingName, configuredDeserializationFeatures)
-    deserializationFeatures.foreach {
-      case (feature, value) => objectMapper.configure(feature, value)
-    }
-
-    val configuredMapperFeatures = features(config, "mapper-features").map {
-      case (enumName, value) => MapperFeature.valueOf(enumName) -> value
-    }
-    val mapperFeatures = objectMapperFactory.overrideConfiguredMapperFeatures(bindingName, configuredMapperFeatures)
-    mapperFeatures.foreach {
-      case (feature, value) => objectMapper.configure(feature, value)
-    }
-
-    val configuredJsonParserFeatures = features(config, "json-parser-features").map {
-      case (enumName, value) => JsonParser.Feature.valueOf(enumName) -> value
-    }
-    val jsonParserFeatures =
-      objectMapperFactory.overrideConfiguredJsonParserFeatures(bindingName, configuredJsonParserFeatures)
-    jsonParserFeatures.foreach {
-      case (feature, value) => objectMapper.configure(feature, value)
-    }
-
-    val configuredJsonGeneratorFeatures = features(config, "json-generator-features").map {
-      case (enumName, value) => JsonGenerator.Feature.valueOf(enumName) -> value
-    }
-    val jsonGeneratorFeatures =
-      objectMapperFactory.overrideConfiguredJsonGeneratorFeatures(bindingName, configuredJsonGeneratorFeatures)
-    jsonGeneratorFeatures.foreach {
-      case (feature, value) => objectMapper.configure(feature, value)
-    }
+    objectMapperFactory.overrideConfiguredDeserializationFeatures(bindingName, configuredDeserializationFeatures)
   }
 
+  private def getDateTimeFeatures(bindingName: String,
+                                  config: Config,
+                                  objectMapperFactory: JacksonObjectMapperFactory): Seq[(DateTimeFeature, Boolean)] = {
+    val configuredDateTimeFeatures =
+      features(config, "datetime-features").map {
+        case (enumName, value) => DateTimeFeature.valueOf(enumName) -> value
+      }
+    objectMapperFactory.overrideConfiguredDateTimeFeatures(bindingName, configuredDateTimeFeatures)
+  }
+
+  private def getMapperFeatures(bindingName: String,
+                                config: Config,
+                                objectMapperFactory: JacksonObjectMapperFactory): Seq[(MapperFeature, Boolean)] = {
+    val configuredMapperFeatures =
+      features(config, "mapper-features").map {
+        case (enumName, value) => MapperFeature.valueOf(enumName) -> value
+      }
+    objectMapperFactory.overrideConfiguredMapperFeatures(bindingName, configuredMapperFeatures)
+  }
+
+  /*
   private def configureObjectVisibility(
       bindingName: String,
       objectMapper: ObjectMapper,
       objectMapperFactory: JacksonObjectMapperFactory,
-      config: Config): Unit = {
+      config: Config): ObjectMapper = {
+
+    val builder = objectMapper.rebuild()
 
     val configuredVisibility: immutable.Seq[(PropertyAccessor, JsonAutoDetect.Visibility)] =
       configPairs(config, "visibility").map {
@@ -213,10 +301,12 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     val visibility =
       objectMapperFactory.overrideConfiguredVisibility(bindingName, configuredVisibility)
     visibility.foreach {
-      case (property, visibility) => objectMapper.setVisibility(property, visibility)
+      case (property, visibility) => builder.changeDefaultVisibility(property, visibility)
     }
 
+    builder.build()
   }
+  */
 
   private def configureObjectMapperModules(
       bindingName: String,
@@ -224,42 +314,36 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       objectMapperFactory: JacksonObjectMapperFactory,
       config: Config,
       dynamicAccess: DynamicAccess,
-      log: Option[LoggingAdapter]): Unit = {
+      log: Option[LoggingAdapter]): ObjectMapper = {
+
+    val builder = objectMapper.rebuild()
 
     val configuredModules = config.getStringList("jackson-modules").asScala
-    val modules1 =
-      configuredModules.flatMap { fqcn =>
-        if (isModuleEnabled(fqcn, dynamicAccess)) {
-          dynamicAccess.createInstanceFor[Module](fqcn, Nil) match {
-            case Success(m) => Some(m)
-            case Failure(e) =>
-              log.foreach(
-                _.error(
-                  e,
-                  s"Could not load configured Jackson module [$fqcn], " +
-                  "please verify classpath dependencies or amend the configuration " +
-                  "[pekko.serialization.jackson216.jackson-modules]. Continuing without this module."))
-              None
-          }
-        } else
-          None
-      }
+    val modules = configuredModules.flatMap { fqcn =>
+      if (isModuleEnabled(fqcn, dynamicAccess)) {
+        dynamicAccess.createInstanceFor[SerializationModule](fqcn, Nil) match {
+          case Success(m) => Some(m)
+          case Failure(e) =>
+            log.foreach(
+              _.error(
+                e,
+                s"Could not load configured Jackson module [$fqcn], " +
+                "please verify classpath dependencies or amend the configuration " +
+                "[pekko.serialization.jackson3.jackson-modules]. Continuing without this module."))
+            None
+        }
+      } else
+        None
+    }
 
-    val modules2 = modules1.map { module =>
-      if (module.isInstanceOf[ParameterNamesModule])
-        // ParameterNamesModule needs a special case for the constructor to ensure that single-parameter
-        // constructors are handled the same way as constructors with multiple parameters.
-        // See https://github.com/FasterXML/jackson-module-parameter-names#delegating-creator
-        new ParameterNamesModule(JsonCreator.Mode.PROPERTIES)
-      else module
-    }.toList
-
-    val modules3 = objectMapperFactory.overrideConfiguredModules(bindingName, modules2)
+    val modules3 = objectMapperFactory.overrideConfiguredModules(bindingName, modules.toList)
 
     modules3.foreach { module =>
-      objectMapper.registerModule(module)
+      builder.addModule(module)
       log.foreach(_.debug("Registered Jackson module [{}]", module.getClass.getName))
     }
+
+    builder.build()
   }
 
   /**
@@ -277,21 +361,36 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       log: Option[LoggingAdapter]): ObjectMapper = {
 
     val configuredJsonFactory = createJsonFactory(bindingName, objectMapperFactory, config, jsonFactory)
-    val mapper = objectMapperFactory.newObjectMapper(bindingName, configuredJsonFactory)
+    var mapper = objectMapperFactory.newObjectMapper(configuredJsonFactory)
+    mapper = configureObjectMapperFeatures(bindingName, mapper, objectMapperFactory, config)
+    mapper = configureObjectMapperModules(bindingName, mapper, objectMapperFactory, config, dynamicAccess, log)
+    // configureObjectVisibility(bindingName, mapper, objectMapperFactory, config)
+    mapper
+  }
 
-    configureObjectMapperFeatures(bindingName, mapper, objectMapperFactory, config)
-    configureObjectMapperModules(bindingName, mapper, objectMapperFactory, config, dynamicAccess, log)
-    configureObjectVisibility(bindingName, mapper, objectMapperFactory, config)
+  def createCBORMapper(
+      bindingName: String,
+      streamFactory: Option[CBORFactory],
+      objectMapperFactory: JacksonObjectMapperFactory,
+      config: Config,
+      dynamicAccess: DynamicAccess,
+      log: Option[LoggingAdapter]): ObjectMapper = {
 
+    val configuredJsonFactory = createCBORFactory(bindingName, objectMapperFactory, config, streamFactory)
+    var mapper = objectMapperFactory.newCBORMapper(configuredJsonFactory)
+    mapper = configureCBORMapperFeatures(bindingName, mapper, objectMapperFactory, config)
+    mapper = configureObjectMapperModules(bindingName, mapper, objectMapperFactory, config,
+      dynamicAccess, log).asInstanceOf[CBORMapper]
+    // configureObjectVisibility(bindingName, mapper, objectMapperFactory, config)
     mapper
   }
 
   private def isModuleEnabled(fqcn: String, dynamicAccess: DynamicAccess): Boolean =
     fqcn match {
-      case "com.github.pjfanning.pekko.serialization.jackson216.PekkoTypedJacksonModule" =>
+      case "com.github.pjfanning.pekko.serialization.jackson3.PekkoTypedJacksonModule" =>
         // pekko-actor-typed dependency is "provided" and may not be included
         dynamicAccess.classIsOnClasspath("org.apache.pekko.actor.typed.ActorRef")
-      case "com.github.pjfanning.pekko.serialization.jackson216.PekkoStreamJacksonModule" =>
+      case "com.github.pjfanning.pekko.serialization.jackson3.PekkoStreamJacksonModule" =>
         // pekko-stream dependency is "provided" and may not be included
         dynamicAccess.classIsOnClasspath("org.apache.pekko.stream.Graph")
       case _ => true
@@ -300,11 +399,6 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
   private def features(config: Config, section: String): immutable.Seq[(String, Boolean)] = {
     val cfg = config.getConfig(section)
     cfg.root.keySet().asScala.map(key => key -> cfg.getBoolean(key)).toList
-  }
-
-  private def configPairs(config: Config, section: String): immutable.Seq[(String, String)] = {
-    val cfg = config.getConfig(section)
-    cfg.root.keySet().asScala.map(key => key -> cfg.getString(key)).toList
   }
 }
 
@@ -319,7 +413,7 @@ final class JacksonObjectMapperProvider(system: ExtendedActorSystem) extends Ext
    * creates a new instance.
    *
    * The `ObjectMapper` is created with sensible defaults and modules configured
-   * in `pekko.serialization.jackson216.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
+   * in `pekko.serialization.jackson3.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
    * if the `ActorSystem` is started with such [[pekko.actor.setup.ActorSystemSetup]].
    *
    * The returned `ObjectMapper` must not be modified, because it may already be in use and such
@@ -333,12 +427,17 @@ final class JacksonObjectMapperProvider(system: ExtendedActorSystem) extends Ext
     objectMappers.computeIfAbsent(bindingName, _ => create(bindingName, jsonFactory))
   }
 
+  //TODo scaladoc
+  def getOrCreateCBOR(bindingName: String, jsonFactory: Option[CBORFactory]): ObjectMapper = {
+    objectMappers.computeIfAbsent(bindingName, _ => createCBOR(bindingName, jsonFactory))
+  }
+
   /**
    * Java API: Returns an existing Jackson `ObjectMapper` that was created previously with this method, or
    * creates a new instance.
    *
    * The `ObjectMapper` is created with sensible defaults and modules configured
-   * in `pekko.serialization.jackson216.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
+   * in `pekko.serialization.jackson3.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
    * if the `ActorSystem` is started with such [[pekko.actor.setup.ActorSystemSetup]].
    *
    * The returned `ObjectMapper` must not be modified, because it may already be in use and such
@@ -353,7 +452,7 @@ final class JacksonObjectMapperProvider(system: ExtendedActorSystem) extends Ext
 
   /**
    * Scala API: Creates a new instance of a Jackson `ObjectMapper` with sensible defaults and modules configured
-   * in `pekko.serialization.jackson216.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
+   * in `pekko.serialization.jackson3.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
    * if the `ActorSystem` is started with such [[pekko.actor.setup.ActorSystemSetup]].
    *
    * @param bindingName name of this `ObjectMapper`
@@ -375,9 +474,23 @@ final class JacksonObjectMapperProvider(system: ExtendedActorSystem) extends Ext
     JacksonObjectMapperProvider.createObjectMapper(bindingName, jsonFactory, factory, config, dynamicAccess, Some(log))
   }
 
+  def createCBOR(bindingName: String, streamFactory: Option[CBORFactory]): ObjectMapper = {
+    val log = Logging.getLogger(system, JacksonObjectMapperProvider.getClass)
+    val dynamicAccess = system.dynamicAccess
+
+    val config = JacksonObjectMapperProvider.configForBinding(bindingName, system.settings.config)
+
+    val factory = system.settings.setup.get[JacksonObjectMapperProviderSetup] match {
+      case Some(setup) => setup.factory
+      case None        => new JacksonObjectMapperFactory // default
+    }
+
+    JacksonObjectMapperProvider.createCBORMapper(bindingName, streamFactory, factory, config, dynamicAccess, Some(log))
+  }
+
   /**
    * Java API: Creates a new instance of a Jackson `ObjectMapper` with sensible defaults and modules configured
-   * in `pekko.serialization.jackson216.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
+   * in `pekko.serialization.jackson3.jackson-modules`. It's using [[JacksonObjectMapperProviderSetup]]
    * if the `ActorSystem` is started with such [[pekko.actor.setup.ActorSystemSetup]].
    *
    * @param bindingName name of this `ObjectMapper`
@@ -422,19 +535,17 @@ final class JacksonObjectMapperProviderSetup(val factory: JacksonObjectMapperFac
  */
 class JacksonObjectMapperFactory {
 
-  /**
-   * Override this method to create a new custom instance of `ObjectMapper` for the given `serializerIdentifier`.
-   *
-   * @param bindingName name of this `ObjectMapper`
-   * @param jsonFactory optional `JsonFactory` such as `CBORFactory`, for plain JSON `None` (defaults)
-   *                    can be used
-   */
-  def newObjectMapper(bindingName: String, jsonFactory: JsonFactory): ObjectMapper =
+  //TODO fix scaladoc
+
+  def newObjectMapper(jsonFactory: JsonFactory): ObjectMapper =
     JsonMapper.builder(jsonFactory).build()
+
+  def newCBORMapper(factory: CBORFactory): CBORMapper =
+    CBORMapper.builder(factory).build()
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
-   * the mapper. These modules can be amended programatically by overriding this method and
+   * the mapper. These modules can be amended programmatically by overriding this method and
    * return the modules that are to be applied to the `ObjectMapper`.
    *
    * When implementing a `JacksonObjectMapperFactory` with Java the `immutable.Seq` can be
@@ -442,11 +553,11 @@ class JacksonObjectMapperFactory {
    *
    * @param bindingName bindingName name of this `ObjectMapper`
    * @param configuredModules the list of `Modules` that were configured in
-   *                           `pekko.serialization.jackson216.deserialization-features`
+   *                           `pekko.serialization.jackson3.deserialization-features`
    */
   def overrideConfiguredModules(
       bindingName: String,
-      configuredModules: immutable.Seq[Module]): immutable.Seq[Module] =
+      configuredModules: immutable.Seq[JacksonModule]): immutable.Seq[JacksonModule] =
     configuredModules
 
   /**
@@ -459,7 +570,7 @@ class JacksonObjectMapperFactory {
    *
    * @param bindingName bindingName name of this `ObjectMapper`
    * @param configuredFeatures the list of `SerializationFeature` that were configured in
-   *                           `pekko.serialization.jackson216.serialization-features`
+   *                           `pekko.serialization.jackson3.serialization-features`
    */
   def overrideConfiguredSerializationFeatures(
       bindingName: String,
@@ -477,7 +588,7 @@ class JacksonObjectMapperFactory {
    *
    * @param bindingName bindingName name of this `ObjectMapper`
    * @param configuredFeatures the list of `DeserializationFeature` that were configured in
-   *                           `pekko.serialization.jackson216.deserialization-features`
+   *                           `pekko.serialization.jackson3.deserialization-features`
    */
   def overrideConfiguredDeserializationFeatures(
       bindingName: String,
@@ -486,12 +597,30 @@ class JacksonObjectMapperFactory {
     configuredFeatures
 
   /**
+   * After construction of the `ObjectMapper` the configured datetime features are applied to
+   * the mapper. These features can be amended programatically by overriding this method and
+   * return the features that are to be applied to the `ObjectMapper`.
+   *
+   * When implementing a `JacksonObjectMapperFactory` with Java the `immutable.Seq` can be
+   * created with [[pekko.japi.Util.immutableSeq]].
+   *
+   * @param bindingName bindingName name of this `ObjectMapper`
+   * @param configuredFeatures the list of `DateTimeFeature` that were configured in
+   *                           `pekko.serialization.jackson3.datetime-features`
+   */
+  def overrideConfiguredDateTimeFeatures(
+                                          bindingName: String,
+                                          configuredFeatures: immutable.Seq[(DateTimeFeature, Boolean)])
+  : immutable.Seq[(DateTimeFeature, Boolean)] =
+    configuredFeatures
+
+  /**
    * After construction of the `ObjectMapper` the configured mapper features are applied to
    * the mapper. These features can be amended programmatically by overriding this method and
    * return the features that are to be applied to the `ObjectMapper`.
    *
    * @param bindingName bindingName name of this `ObjectMapper`
-   * @param configuredFeatures the list of `MapperFeatures` that were configured in `pekko.serialization.jackson216.mapper-features`
+   * @param configuredFeatures the list of `MapperFeatures` that were configured in `pekko.serialization.jackson3.mapper-features`
    */
   def overrideConfiguredMapperFeatures(
       bindingName: String,
@@ -504,11 +633,11 @@ class JacksonObjectMapperFactory {
    * return the features that are to be applied to the `ObjectMapper`.
    *
    * @param bindingName bindingName name of this `ObjectMapper`
-   * @param configuredFeatures the list of `JsonParser.Feature` that were configured in `pekko.serialization.jackson216.json-parser-features`
+   * @param configuredFeatures the list of `StreamReadFeature` that were configured in `pekko.serialization.jackson3.stream-read-features`
    */
   def overrideConfiguredJsonParserFeatures(
       bindingName: String,
-      configuredFeatures: immutable.Seq[(JsonParser.Feature, Boolean)]): immutable.Seq[(JsonParser.Feature, Boolean)] =
+      configuredFeatures: immutable.Seq[(StreamReadFeature, Boolean)]): immutable.Seq[(StreamReadFeature, Boolean)] =
     configuredFeatures
 
   /**
@@ -517,12 +646,12 @@ class JacksonObjectMapperFactory {
    * return the features that are to be applied to the `ObjectMapper`.
    *
    * @param bindingName bindingName name of this `ObjectMapper`
-   * @param configuredFeatures the list of `JsonGenerator.Feature` that were configured in `pekko.serialization.jackson216.json-generator-features`
+   * @param configuredFeatures the list of `StreamWriteFeature` that were configured in `pekko.serialization.jackson3.json-generator-features`
    */
   def overrideConfiguredJsonGeneratorFeatures(
       bindingName: String,
-      configuredFeatures: immutable.Seq[(JsonGenerator.Feature, Boolean)])
-      : immutable.Seq[(JsonGenerator.Feature, Boolean)] =
+      configuredFeatures: immutable.Seq[(StreamWriteFeature, Boolean)])
+      : immutable.Seq[(StreamWriteFeature, Boolean)] =
     configuredFeatures
 
   /**
@@ -531,7 +660,7 @@ class JacksonObjectMapperFactory {
    * that are to be applied to the `JsonFactoryBuilder`.
    *
    * @param bindingName bindingName name of this `ObjectMapper`
-   * @param configuredFeatures the list of `StreamReadFeature` that were configured in `pekko.serialization.jackson216.stream-read-features`
+   * @param configuredFeatures the list of `StreamReadFeature` that were configured in `pekko.serialization.jackson3.stream-read-features`
    */
   def overrideConfiguredStreamReadFeatures(
       bindingName: String,
@@ -544,7 +673,7 @@ class JacksonObjectMapperFactory {
    * that are to be applied to the `JsonFactoryBuilder`.
    *
    * @param bindingName bindingName name of this `ObjectMapper`
-   * @param configuredFeatures the list of `StreamWriterFeature` that were configured in `pekko.serialization.jackson216.stream-write-features`
+   * @param configuredFeatures the list of `StreamWriterFeature` that were configured in `pekko.serialization.jackson3.stream-write-features`
    */
   def overrideConfiguredStreamWriteFeatures(
       bindingName: String,
@@ -557,7 +686,7 @@ class JacksonObjectMapperFactory {
    * that are to be applied to the `JsonFactoryBuilder`.
    *
    * @param bindingName bindingName name of this `ObjectMapper`
-   * @param configuredFeatures the list of `JsonReadFeature` that were configured in `pekko.serialization.jackson216.json-read-features`
+   * @param configuredFeatures the list of `JsonReadFeature` that were configured in `pekko.serialization.jackson3.json-read-features`
    */
   def overrideConfiguredJsonReadFeatures(
       bindingName: String,
@@ -570,7 +699,7 @@ class JacksonObjectMapperFactory {
    * that are to be applied to the `JsonFactoryBuilder`.
    *
    * @param bindingName bindingName name of this `ObjectMapper`
-   * @param configuredFeatures the list of `JsonWriteFeature` that were configured in `pekko.serialization.jackson216.json-write-features`
+   * @param configuredFeatures the list of `JsonWriteFeature` that were configured in `pekko.serialization.jackson3.json-write-features`
    */
   def overrideConfiguredJsonWriteFeatures(
       bindingName: String,
@@ -584,7 +713,7 @@ class JacksonObjectMapperFactory {
    *
    * @param bindingName bindingName name of this `ObjectMapper`
    * @param configuredFeatures the list of `PropertyAccessor`/`JsonAutoDetect.Visibility` that were configured in
-   *                           `pekko.serialization.jackson216.visibility`
+   *                           `pekko.serialization.jackson3.visibility`
    */
   def overrideConfiguredVisibility(
       bindingName: String,

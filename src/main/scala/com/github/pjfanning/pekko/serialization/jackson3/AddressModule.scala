@@ -11,15 +11,15 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.JsonTokenId
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer
-import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.core.JsonTokenId
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.deser.std.StdScalarDeserializer
+import tools.jackson.databind.ser.std.StdScalarSerializer
 
 import org.apache.pekko
 import pekko.actor.Address
@@ -29,22 +29,22 @@ import pekko.annotation.InternalApi
 /**
  * INTERNAL API: Adds support for serializing and deserializing [[Address]].
  */
-@InternalApi private[jackson216] trait AddressModule extends JacksonModule {
+@InternalApi private[jackson3] trait AddressModule extends SerializationModule {
   addSerializer(classOf[Address], () => AddressSerializer.instance, () => AddressDeserializer.instance)
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object AddressSerializer {
+@InternalApi private[jackson3] object AddressSerializer {
   val instance: AddressSerializer = new AddressSerializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class AddressSerializer extends StdScalarSerializer[Address](classOf[Address]) {
-  override def serialize(value: Address, jgen: JsonGenerator, provider: SerializerProvider): Unit = {
+@InternalApi private[jackson3] class AddressSerializer extends StdScalarSerializer[Address](classOf[Address]) {
+  override def serialize(value: Address, jgen: JsonGenerator, provider: SerializationContext): Unit = {
     jgen.writeString(value.toString)
   }
 }
@@ -52,18 +52,18 @@ import pekko.annotation.InternalApi
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object AddressDeserializer {
+@InternalApi private[jackson3] object AddressDeserializer {
   val instance: AddressDeserializer = new AddressDeserializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class AddressDeserializer extends StdScalarDeserializer[Address](classOf[Address]) {
+@InternalApi private[jackson3] class AddressDeserializer extends StdScalarDeserializer[Address](classOf[Address]) {
 
   def deserialize(jp: JsonParser, ctxt: DeserializationContext): Address = {
     if (jp.currentTokenId() == JsonTokenId.ID_STRING) {
-      val serializedAddress = jp.getText()
+      val serializedAddress = jp.getString()
       AddressFromURIString(serializedAddress)
     } else
       ctxt.handleUnexpectedToken(handledType(), jp).asInstanceOf[Address]

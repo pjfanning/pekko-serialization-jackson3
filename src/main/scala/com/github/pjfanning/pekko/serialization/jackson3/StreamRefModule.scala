@@ -11,20 +11,20 @@
  * Copyright (C) 2009-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-// FIXME maybe move many things to `com.github.pjfanning.pekko.serialization.jackson216.internal` package?
+// FIXME maybe move many things to `com.github.pjfanning.pekko.serialization.jackson3.internal` package?
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.JsonTokenId
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer
-import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.core.JsonTokenId
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.deser.std.StdScalarDeserializer
+import tools.jackson.databind.ser.std.StdScalarSerializer
 import org.apache.pekko
-import org.apache.pekko.serialization.jackson216.ActorSystemAccess
 import pekko.annotation.InternalApi
+import pekko.serialization.jackson3.ActorSystemAccess
 import pekko.stream.SinkRef
 import pekko.stream.SourceRef
 import pekko.stream.StreamRefResolver
@@ -32,7 +32,7 @@ import pekko.stream.StreamRefResolver
 /**
  * INTERNAL API: Adds support for serializing and deserializing [[pekko.stream.SourceRef]] and [[pekko.stream.SinkRef]].
  */
-@InternalApi private[jackson216] trait StreamRefModule extends JacksonModule {
+@InternalApi private[jackson3] trait StreamRefModule extends SerializationModule {
   addSerializer(classOf[SourceRef[_]], () => SourceRefSerializer.instance, () => SourceRefDeserializer.instance)
   addSerializer(classOf[SinkRef[_]], () => SinkRefSerializer.instance, () => SinkRefDeserializer.instance)
 }
@@ -40,18 +40,18 @@ import pekko.stream.StreamRefResolver
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object SourceRefSerializer {
+@InternalApi private[jackson3] object SourceRefSerializer {
   val instance: SourceRefSerializer = new SourceRefSerializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class SourceRefSerializer
+@InternalApi private[jackson3] class SourceRefSerializer
     extends StdScalarSerializer[SourceRef[_]](classOf[SourceRef[_]])
     with ActorSystemAccess {
 
-  override def serialize(value: SourceRef[_], jgen: JsonGenerator, provider: SerializerProvider): Unit = {
+  override def serialize(value: SourceRef[_], jgen: JsonGenerator, provider: SerializationContext): Unit = {
     val resolver = StreamRefResolver(currentSystem())
     val serializedSourceRef = resolver.toSerializationFormat(value)
     jgen.writeString(serializedSourceRef)
@@ -61,20 +61,20 @@ import pekko.stream.StreamRefResolver
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object SourceRefDeserializer {
+@InternalApi private[jackson3] object SourceRefDeserializer {
   val instance: SourceRefDeserializer = new SourceRefDeserializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class SourceRefDeserializer
+@InternalApi private[jackson3] class SourceRefDeserializer
     extends StdScalarDeserializer[SourceRef[_]](classOf[SourceRef[_]])
     with ActorSystemAccess {
 
   def deserialize(jp: JsonParser, ctxt: DeserializationContext): SourceRef[_] = {
     if (jp.currentTokenId() == JsonTokenId.ID_STRING) {
-      val serializedSourceRef = jp.getText()
+      val serializedSourceRef = jp.getString()
       StreamRefResolver(currentSystem()).resolveSourceRef(serializedSourceRef)
     } else
       ctxt.handleUnexpectedToken(handledType(), jp).asInstanceOf[SourceRef[_]]
@@ -84,18 +84,18 @@ import pekko.stream.StreamRefResolver
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object SinkRefSerializer {
+@InternalApi private[jackson3] object SinkRefSerializer {
   val instance: SinkRefSerializer = new SinkRefSerializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class SinkRefSerializer
+@InternalApi private[jackson3] class SinkRefSerializer
     extends StdScalarSerializer[SinkRef[_]](classOf[SinkRef[_]])
     with ActorSystemAccess {
 
-  override def serialize(value: SinkRef[_], jgen: JsonGenerator, provider: SerializerProvider): Unit = {
+  override def serialize(value: SinkRef[_], jgen: JsonGenerator, provider: SerializationContext): Unit = {
     val resolver = StreamRefResolver(currentSystem())
     val serializedSinkRef = resolver.toSerializationFormat(value)
     jgen.writeString(serializedSinkRef)
@@ -105,20 +105,20 @@ import pekko.stream.StreamRefResolver
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object SinkRefDeserializer {
+@InternalApi private[jackson3] object SinkRefDeserializer {
   val instance: SinkRefDeserializer = new SinkRefDeserializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class SinkRefDeserializer
+@InternalApi private[jackson3] class SinkRefDeserializer
     extends StdScalarDeserializer[SinkRef[_]](classOf[SinkRef[_]])
     with ActorSystemAccess {
 
   def deserialize(jp: JsonParser, ctxt: DeserializationContext): SinkRef[_] = {
     if (jp.currentTokenId() == JsonTokenId.ID_STRING) {
-      val serializedSinkref = jp.getText()
+      val serializedSinkref = jp.getString()
       StreamRefResolver(currentSystem()).resolveSinkRef(serializedSinkref)
     } else
       ctxt.handleUnexpectedToken(handledType(), jp).asInstanceOf[SinkRef[_]]

@@ -14,9 +14,9 @@
 package doc.org.apache.pekko.serialization.jackson.v2c
 
 // #rename
-import com.github.pjfanning.pekko.serialization.jackson216.JacksonMigration
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
+import com.github.pjfanning.pekko.serialization.jackson3.JacksonMigration
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 
 class ItemAddedMigration extends JacksonMigration {
 
@@ -25,7 +25,7 @@ class ItemAddedMigration extends JacksonMigration {
   override def transform(fromVersion: Int, json: JsonNode): JsonNode = {
     val root = json.asInstanceOf[ObjectNode]
     if (fromVersion <= 1) {
-      root.set[JsonNode]("itemId", root.get("productId"))
+      root.set("itemId", root.get("productId"))
       root.remove("productId")
     }
     root

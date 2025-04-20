@@ -11,83 +11,73 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-import com.fasterxml.jackson.core.Version
-import com.fasterxml.jackson.core.util.VersionUtil
-import com.fasterxml.jackson.databind.BeanDescription
-import com.fasterxml.jackson.databind.DeserializationConfig
-import com.fasterxml.jackson.databind.JavaType
-import com.fasterxml.jackson.databind.JsonDeserializer
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.Module
-import com.fasterxml.jackson.databind.Module.SetupContext
-import com.fasterxml.jackson.databind.SerializationConfig
-import com.fasterxml.jackson.databind.`type`.TypeModifier
-import com.fasterxml.jackson.databind.deser.Deserializers
-import com.fasterxml.jackson.databind.ser.BeanSerializerModifier
-import com.fasterxml.jackson.databind.ser.Serializers
-
+import com.fasterxml.jackson.annotation.JsonFormat
+import tools.jackson.core.Version
+import tools.jackson.core.util.VersionUtil
+import tools.jackson.databind.{BeanDescription, DeserializationConfig, JacksonModule, JavaType, SerializationConfig, ValueDeserializer, ValueSerializer}
+import tools.jackson.databind.JacksonModule.SetupContext
+import tools.jackson.databind.`type`.TypeModifier
+import tools.jackson.databind.deser.Deserializers
+import tools.jackson.databind.ser.Serializers
+import tools.jackson.databind.ser.ValueSerializerModifier
 import org.apache.pekko
 import pekko.annotation.InternalApi
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object JacksonModule {
+@InternalApi private[jackson3] object SerializationModule {
 
   lazy val version: Version = {
     val groupId = "org.apache.pekko"
-    val artifactId = "serialization-jackson216"
+    val artifactId = "serialization-jackson3"
     val version = pekko.Version.current
     VersionUtil.parseVersion(version, groupId, artifactId)
   }
 
-  class SerializerResolverByClass(clazz: Class[_], deserializer: () => JsonSerializer[_]) extends Serializers.Base {
+  class SerializerResolverByClass(clazz: Class[_], deserializer: () => ValueSerializer[_]) extends Serializers.Base {
 
     override def findSerializer(
         config: SerializationConfig,
         javaType: JavaType,
-        beanDesc: BeanDescription): JsonSerializer[_] = {
+        beanDesc: BeanDescription,
+        formatOverrides: JsonFormat.Value): ValueSerializer[_] = {
       if (clazz.isAssignableFrom(javaType.getRawClass))
         deserializer()
       else
-        super.findSerializer(config, javaType, beanDesc)
+        super.findSerializer(config, javaType, beanDesc, formatOverrides)
     }
 
   }
 
-  class DeserializerResolverByClass(clazz: Class[_], serializer: () => JsonDeserializer[_]) extends Deserializers.Base {
+  class DeserializerResolverByClass(clazz: Class[_], serializer: () => ValueDeserializer[_]) extends Deserializers.Base {
 
     override def findBeanDeserializer(
         javaType: JavaType,
         config: DeserializationConfig,
-        beanDesc: BeanDescription): JsonDeserializer[_] = {
+        beanDesc: BeanDescription): ValueDeserializer[_] = {
       if (clazz.isAssignableFrom(javaType.getRawClass))
         serializer()
       else
         super.findBeanDeserializer(javaType, config, beanDesc)
     }
 
+    override def hasDeserializerFor(config: DeserializationConfig, valueType: Class[_]): Boolean =
+      clazz.isAssignableFrom(valueType)
   }
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object VersionExtractor {
-  def unapply(v: Version) = Some((v.getMajorVersion, v.getMinorVersion))
-}
-
-/**
- * INTERNAL API
- */
-@InternalApi private[jackson216] trait JacksonModule extends Module {
-  import JacksonModule._
+@InternalApi private[jackson3] trait SerializationModule extends JacksonModule {
+  import SerializationModule._
 
   private val initializers = Seq.newBuilder[SetupContext => Unit]
 
-  def version: Version = JacksonModule.version
+  def version: Version = SerializationModule.version
 
   def setupModule(context: SetupContext): Unit = {
     initializers.result().foreach(_.apply(context))
@@ -95,8 +85,8 @@ import pekko.annotation.InternalApi
 
   def addSerializer(
       clazz: Class[_],
-      serializer: () => JsonSerializer[_],
-      deserializer: () => JsonDeserializer[_]): this.type = {
+      serializer: () => ValueSerializer[_],
+      deserializer: () => ValueDeserializer[_]): this.type = {
     this += { ctx =>
       ctx.addSerializers(new SerializerResolverByClass(clazz, serializer))
       ctx.addDeserializers(new DeserializerResolverByClass(clazz, deserializer))
@@ -107,6 +97,6 @@ import pekko.annotation.InternalApi
   protected def +=(ser: Serializers): this.type = this += (_.addSerializers(ser))
   protected def +=(deser: Deserializers): this.type = this += (_.addDeserializers(deser))
   protected def +=(typeMod: TypeModifier): this.type = this += (_.addTypeModifier(typeMod))
-  protected def +=(beanSerMod: BeanSerializerModifier): this.type = this += (_.addBeanSerializerModifier(beanSerMod))
+  protected def +=(beanSerMod: ValueSerializerModifier): this.type = this += (_.addSerializerModifier(beanSerMod))
 
 }

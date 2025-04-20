@@ -11,24 +11,24 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
 /**
  * Complete module with support for all custom serializers.
  */
-class PekkoJacksonModule extends JacksonModule with ActorRefModule with AddressModule with FiniteDurationModule {
+class PekkoJacksonModule extends SerializationModule with ActorRefModule with AddressModule with FiniteDurationModule {
   override def getModuleName = "PekkoJacksonModule"
 }
 
 object PekkoJacksonModule extends PekkoJacksonModule
 
-class PekkoTypedJacksonModule extends JacksonModule with TypedActorRefModule {
+class PekkoTypedJacksonModule extends SerializationModule with TypedActorRefModule {
   override def getModuleName = "PekkoTypedJacksonModule"
 }
 
 object PekkoTypedJacksonModule extends PekkoJacksonModule
 
-class PekkoStreamJacksonModule extends JacksonModule with StreamRefModule {
+class PekkoStreamJacksonModule extends SerializationModule with StreamRefModule {
   override def getModuleName = "PekkoStreamJacksonModule"
 }
 

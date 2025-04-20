@@ -14,25 +14,22 @@
 package doc.org.apache.pekko.serialization.jackson.v2a
 
 // #structural
-import com.github.pjfanning.pekko.serialization.jackson216.JacksonMigration
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
-
-import scala.annotation.nowarn
+import com.github.pjfanning.pekko.serialization.jackson3.JacksonMigration
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 
 class CustomerMigration extends JacksonMigration {
 
   override def currentVersion: Int = 2
 
-  @nowarn("msg=deprecated")
   override def transform(fromVersion: Int, json: JsonNode): JsonNode = {
     val root = json.asInstanceOf[ObjectNode]
     if (fromVersion <= 1) {
-      val shippingAddress = root.`with`("shippingAddress")
-      shippingAddress.set[JsonNode]("street", root.get("street"))
-      shippingAddress.set[JsonNode]("city", root.get("city"))
-      shippingAddress.set[JsonNode]("zipCode", root.get("zipCode"))
-      shippingAddress.set[JsonNode]("country", root.get("country"))
+      val shippingAddress = root.withObject("shippingAddress")
+      shippingAddress.set("street", root.get("street"))
+      shippingAddress.set("city", root.get("city"))
+      shippingAddress.set("zipCode", root.get("zipCode"))
+      shippingAddress.set("country", root.get("country"))
       root.remove("street")
       root.remove("city")
       root.remove("zipCode")

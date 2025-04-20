@@ -14,9 +14,9 @@
 package jdoc.org.apache.pekko.serialization.jackson.v2a;
 
 // #structural
-import com.github.pjfanning.pekko.serialization.jackson216.JacksonMigration;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.pjfanning.pekko.serialization.jackson3.JacksonMigration;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 public class CustomerMigration extends JacksonMigration {
 
@@ -29,7 +29,7 @@ public class CustomerMigration extends JacksonMigration {
   public JsonNode transform(int fromVersion, JsonNode json) {
     ObjectNode root = (ObjectNode) json;
     if (fromVersion <= 1) {
-      ObjectNode shippingAddress = root.with("shippingAddress");
+      ObjectNode shippingAddress = root.withObject("shippingAddress");
       shippingAddress.set("street", root.get("street"));
       shippingAddress.set("city", root.get("city"));
       shippingAddress.set("zipCode", root.get("zipCode"));

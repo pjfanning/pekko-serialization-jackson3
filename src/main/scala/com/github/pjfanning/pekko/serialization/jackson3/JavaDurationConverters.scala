@@ -11,7 +11,7 @@
  * Copyright (C) 2009-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
 import java.time.{ Duration => JDuration }
 
@@ -23,7 +23,7 @@ import org.apache.pekko.annotation.InternalStableApi
  * INTERNAL API
  */
 @InternalStableApi
-private[jackson216] object JavaDurationConverters {
+private[jackson3] object JavaDurationConverters {
   def asFiniteDuration(duration: JDuration): FiniteDuration = duration.asScala
 
   final implicit class JavaDurationOps(val self: JDuration) extends AnyVal {

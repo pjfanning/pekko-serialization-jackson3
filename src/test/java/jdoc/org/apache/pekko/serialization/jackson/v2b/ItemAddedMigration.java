@@ -14,10 +14,10 @@
 package jdoc.org.apache.pekko.serialization.jackson.v2b;
 
 // #add-mandatory
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.DoubleNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.pjfanning.pekko.serialization.jackson216.JacksonMigration;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.DoubleNode;
+import tools.jackson.databind.node.ObjectNode;
+import com.github.pjfanning.pekko.serialization.jackson3.JacksonMigration;
 
 public class ItemAddedMigration extends JacksonMigration {
 

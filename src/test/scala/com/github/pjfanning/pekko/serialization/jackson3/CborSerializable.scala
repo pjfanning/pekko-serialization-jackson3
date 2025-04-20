@@ -11,9 +11,9 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
 /**
- * Marker trait for serialization with Jackson JSON in tests
+ * Marker trait for serialization with Jackson CBOR in tests
  */
-trait JsonSerializable
+trait CborSerializable

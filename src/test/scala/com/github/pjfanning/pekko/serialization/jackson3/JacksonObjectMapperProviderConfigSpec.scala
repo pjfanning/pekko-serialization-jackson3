@@ -1,6 +1,6 @@
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-import com.fasterxml.jackson.core.util.JsonRecyclerPools.BoundedPool
+import tools.jackson.core.util.JsonRecyclerPools.BoundedPool
 import com.typesafe.config.ConfigFactory
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
@@ -12,7 +12,7 @@ class JacksonObjectMapperProviderConfigSpec extends TestKit(
   ActorSystem(
     "JacksonObjectMapperProviderConfigSpec",
     ConfigFactory.parseString("""
-                                 | pekko.serialization.jackson216 {
+                                 | pekko.serialization.jackson3 {
                                  |   read {
                                  |     max-nesting-depth = 1001
                                  |     max-number-length = 999
@@ -40,8 +40,8 @@ class JacksonObjectMapperProviderConfigSpec extends TestKit(
   "JacksonObjectMapperProvider" should {
     "pick up stream constraints" in {
       val objectMapper = JacksonObjectMapperProvider(system).create("test", None)
-      val src = objectMapper.getFactory.streamReadConstraints()
-      val swc = objectMapper.getFactory.streamWriteConstraints()
+      val src = objectMapper._deserializationContext().streamReadConstraints()
+      val swc = objectMapper.rebuild().streamFactory().streamWriteConstraints()
       src.getMaxNestingDepth shouldEqual 1001
       src.getMaxNumberLength shouldEqual 999
       src.getMaxNameLength shouldEqual 234
@@ -52,7 +52,7 @@ class JacksonObjectMapperProviderConfigSpec extends TestKit(
     }
     "pick up recycler pool config" in {
       val objectMapper = JacksonObjectMapperProvider(system).create("test", None)
-      val recyclerPool = objectMapper.getFactory._getRecyclerPool()
+      val recyclerPool = objectMapper.rebuild().streamFactory()._getRecyclerPool()
       recyclerPool.getClass.getSimpleName shouldEqual "BoundedPool"
       recyclerPool.asInstanceOf[BoundedPool].capacity() shouldEqual 1234
     }

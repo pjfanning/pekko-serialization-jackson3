@@ -11,7 +11,7 @@
  * Copyright (C) 2016-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
 import org.apache.pekko.annotation.InternalStableApi
 
@@ -19,7 +19,7 @@ import org.apache.pekko.annotation.InternalStableApi
  * INTERNAL API
  */
 @InternalStableApi
-private[jackson216] object OptionVal {
+private[jackson3] object OptionVal {
 
   def apply[A](x: A): OptionVal[A] = new OptionVal(x)
 
@@ -46,7 +46,7 @@ private[jackson216] object OptionVal {
  * See https://hseeberger.wordpress.com/2013/10/04/name-based-extractors-in-scala-2-11/
  */
 @InternalStableApi
-private[jackson216] final class OptionVal[+A](val x: A) extends AnyVal {
+private[jackson3] final class OptionVal[+A](val x: A) extends AnyVal {
 
   /**
    * Returns true if the option is `OptionVal.None`, false otherwise.
