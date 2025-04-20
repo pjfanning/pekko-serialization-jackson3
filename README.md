@@ -1,17 +1,14 @@
-# pekko-serialization-jackson216
+# pekko-serialization-jackson3
 
-Jackson 2.16 equivalent of [pekko-serialization-jackson](https://pekko.apache.org/docs/pekko/current/serialization-jackson.html) which uses Jackson 2.14.
+Jackson 2.16 equivalent of [pekko-serialization-jackson](https://pekko.apache.org/docs/pekko/current/serialization-jackson.html) which uses Jackson 3.
 
-See also https://github.com/pjfanning/pekko-serialization-jackson215
+See also https://github.com/pjfanning/pekko-serialization-jackson216
 
-The main reason to use Jackson 2.16 is for its [StreamReadConstraints](https://www.javadoc.io/static/com.fasterxml.jackson.core/jackson-core/2.16.0/com/fasterxml/jackson/core/StreamReadConstraints.html) support. Users who want to override the default constraints should override the settings in the [config](https://github.com/lightbend/config), see [reference.conf](https://github.com/pjfanning/pekko-serialization-jackson216/blob/main/src/main/resources/reference.conf).
-
-Config names for this library start with `pekko.serialization.jackson216` as opposed to `pekko.serialization.jackson`.
-
-If you want to use Jackson 2.16 with [Pekko HTTP](https://pekko.apache.org/docs/pekko-http/current), use [pekko-http-jackson](https://github.com/pjfanning/pekko-http-json) v2.3.0 instead.
+Jackson 3 is still in RC and not yet released. The package name in Jackson3 is `tools.jackson` instead of `com.fasterxml.jackson`.
+The default configuration has changed a lot compared with Jackson2.
 
 ## sbt
 
 ```
-libraryDependencies += "com.github.pjfanning" %% "pekko-serialization-jackson216" % "1.0.4"
+libraryDependencies += "com.github.pjfanning" %% "pekko-serialization-jackson3" % "<version>"
 ```
