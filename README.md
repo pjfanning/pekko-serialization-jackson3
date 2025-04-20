@@ -1,6 +1,6 @@
 # pekko-serialization-jackson3
 
-Jackson 2.16 equivalent of [pekko-serialization-jackson](https://pekko.apache.org/docs/pekko/current/serialization-jackson.html) which uses Jackson 3.
+Jackson 3 equivalent of [pekko-serialization-jackson](https://pekko.apache.org/docs/pekko/current/serialization-jackson.html) which uses Jackson 2.17 (Pekko 1.1).
 
 See also https://github.com/pjfanning/pekko-serialization-jackson216
 
