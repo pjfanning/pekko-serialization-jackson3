@@ -321,7 +321,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     val configuredModules = config.getStringList("jackson-modules").asScala
     val modules = configuredModules.flatMap { fqcn =>
       if (isModuleEnabled(fqcn, dynamicAccess)) {
-        dynamicAccess.createInstanceFor[SerializationModule](fqcn, Nil) match {
+        dynamicAccess.createInstanceFor[JacksonModule](fqcn, Nil) match {
           case Success(m) => Some(m)
           case Failure(e) =>
             log.foreach(

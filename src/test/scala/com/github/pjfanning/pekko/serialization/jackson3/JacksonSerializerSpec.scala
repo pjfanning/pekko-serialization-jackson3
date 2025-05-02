@@ -336,7 +336,7 @@ class JacksonJsonSerializerSpec extends JacksonSerializerSpec("jackson-json") {
     // see DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS = on
     "be possible to serialize dates and durations as numeric timestamps" in {
       withSystem("""
-        pekko.serialization.jackson3.serialization-features {
+        pekko.serialization.jackson3.datetime-features {
           WRITE_DATES_AS_TIMESTAMPS = on
           WRITE_DURATIONS_AS_TIMESTAMPS = on
         }

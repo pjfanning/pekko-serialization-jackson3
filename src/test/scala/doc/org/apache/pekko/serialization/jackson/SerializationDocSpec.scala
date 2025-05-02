@@ -71,12 +71,12 @@ object SerializationDocSpec {
   val configSpecific = """
     #//#specific-config
     pekko.serialization.jackson3.jackson-json {
-      serialization-features {
+      datetime-features {
         WRITE_DATES_AS_TIMESTAMPS = off
       }
     }
     pekko.serialization.jackson3.jackson-cbor {
-      serialization-features {
+      datetime-features {
         WRITE_DATES_AS_TIMESTAMPS = on
       }
     }
@@ -101,12 +101,12 @@ object SerializationDocSpec {
     }
     pekko.serialization.jackson {
       jackson-json-message {
-        serialization-features {
+        datetime-features {
           WRITE_DATES_AS_TIMESTAMPS = on
         }
       }
       jackson-json-event {
-        serialization-features {
+        datetime-features {
           WRITE_DATES_AS_TIMESTAMPS = off
         }
       }
@@ -187,7 +187,7 @@ object SerializationDocSpec {
 
   val configDateTime = """
     #//#date-time
-    pekko.serialization.jackson3.serialization-features {
+    pekko.serialization.jackson3.datetime-features {
       WRITE_DATES_AS_TIMESTAMPS = on
       WRITE_DURATIONS_AS_TIMESTAMPS = on
     }
