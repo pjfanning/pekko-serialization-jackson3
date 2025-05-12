@@ -15,9 +15,9 @@ package jdoc.org.apache.pekko.serialization.jackson.v2c;
 
 // #rename
 
-import com.github.pjfanning.pekko.serialization.jackson216.JacksonMigration;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.pjfanning.pekko.serialization.jackson3.JacksonMigration;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 public class ItemAddedMigration extends JacksonMigration {
 

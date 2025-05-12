@@ -1,6 +1,5 @@
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-import com.fasterxml.jackson.core.util.JsonRecyclerPools.BoundedPool
 import com.typesafe.config.ConfigFactory
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
@@ -23,8 +22,8 @@ class JacksonObjectMapperProviderDefaultSpec extends TestKit(
   "JacksonObjectMapperProvider" should {
     "pick up stream constraints" in {
       val objectMapper = JacksonObjectMapperProvider(system).create("test", None)
-      val src = objectMapper.getFactory.streamReadConstraints()
-      val swc = objectMapper.getFactory.streamWriteConstraints()
+      val src = objectMapper._deserializationContext().streamReadConstraints()
+      val swc = objectMapper.rebuild().streamFactory().streamWriteConstraints()
       src.getMaxNestingDepth shouldEqual 1000
       src.getMaxNumberLength shouldEqual 1000
       src.getMaxNameLength shouldEqual 50000
@@ -35,7 +34,7 @@ class JacksonObjectMapperProviderDefaultSpec extends TestKit(
     }
     "pick up recycler pool config" in {
       val objectMapper = JacksonObjectMapperProvider(system).create("test", None)
-      val recyclerPool = objectMapper.getFactory._getRecyclerPool()
+      val recyclerPool = objectMapper.rebuild().streamFactory()._getRecyclerPool()
       recyclerPool.getClass.getSimpleName shouldEqual "ThreadLocalPool"
     }
   }

@@ -23,10 +23,10 @@ import pekko.serialization.SerializerWithStringManifest
 import pekko.serialization.Serializers
 import pekko.testkit.TestKit
 import com.fasterxml.jackson.annotation.{ JsonSubTypes, JsonTypeInfo, JsonTypeName }
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.annotation.JsonDeserialize
+import tools.jackson.databind.deser.std.StdDeserializer
 import com.typesafe.config.ConfigFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -54,7 +54,7 @@ object SerializationDocSpec {
 
   val configMigration = """
     #//#migrations-conf
-    pekko.serialization.jackson216.migrations {
+    pekko.serialization.jackson3.migrations {
       "com.myservice.event.ItemAdded" = "com.myservice.event.ItemAddedMigration"
     }
     #//#migrations-conf
@@ -62,7 +62,7 @@ object SerializationDocSpec {
 
   val configMigrationRenamClass = """
     #//#migrations-conf-rename
-    pekko.serialization.jackson216.migrations {
+    pekko.serialization.jackson3.migrations {
       "com.myservice.event.OrderAdded" = "com.myservice.event.OrderPlacedMigration"
     }
     #//#migrations-conf-rename
@@ -70,13 +70,13 @@ object SerializationDocSpec {
 
   val configSpecific = """
     #//#specific-config
-    pekko.serialization.jackson216.jackson-json {
-      serialization-features {
+    pekko.serialization.jackson3.jackson-json {
+      datetime-features {
         WRITE_DATES_AS_TIMESTAMPS = off
       }
     }
-    pekko.serialization.jackson216.jackson-cbor {
-      serialization-features {
+    pekko.serialization.jackson3.jackson-cbor {
+      datetime-features {
         WRITE_DATES_AS_TIMESTAMPS = on
       }
     }
@@ -87,8 +87,8 @@ object SerializationDocSpec {
     #//#several-config
     pekko.actor {
       serializers {
-        jackson-json-message = "com.github.pjfanning.pekko.serialization.jackson216.JacksonJsonSerializer"
-        jackson-json-event   = "com.github.pjfanning.pekko.serialization.jackson216.JacksonJsonSerializer"
+        jackson-json-message = "com.github.pjfanning.pekko.serialization.jackson3.JacksonJsonSerializer"
+        jackson-json-event   = "com.github.pjfanning.pekko.serialization.jackson3.JacksonJsonSerializer"
       }
       serialization-identifiers {
         jackson-json-message = 9001
@@ -101,12 +101,12 @@ object SerializationDocSpec {
     }
     pekko.serialization.jackson {
       jackson-json-message {
-        serialization-features {
+        datetime-features {
           WRITE_DATES_AS_TIMESTAMPS = on
         }
       }
       jackson-json-event {
-        serialization-features {
+        datetime-features {
           WRITE_DATES_AS_TIMESTAMPS = off
         }
       }
@@ -118,7 +118,7 @@ object SerializationDocSpec {
     #//#manifestless
     pekko.actor {
       serializers {
-        jackson-json-event = "com.github.pjfanning.pekko.serialization.jackson216.JacksonJsonSerializer"
+        jackson-json-event = "com.github.pjfanning.pekko.serialization.jackson3.JacksonJsonSerializer"
       }
       serialization-identifiers {
         jackson-json-event = 9001
@@ -187,7 +187,7 @@ object SerializationDocSpec {
 
   val configDateTime = """
     #//#date-time
-    pekko.serialization.jackson216.serialization-features {
+    pekko.serialization.jackson3.datetime-features {
       WRITE_DATES_AS_TIMESTAMPS = on
       WRITE_DURATIONS_AS_TIMESTAMPS = on
     }
@@ -196,7 +196,7 @@ object SerializationDocSpec {
 
   val configAllowList = """
     #//#allowed-class-prefix
-    pekko.serialization.jackson216.allowed-class-prefix =
+    pekko.serialization.jackson3.allowed-class-prefix =
       ["com.myservice.event.OrderAdded", "com.myservice.command"]
     #//#allowed-class-prefix
   """
@@ -208,7 +208,7 @@ class SerializationDocSpec
       ActorSystem(
         "SerializationDocSpec",
         ConfigFactory.parseString(s"""
-    pekko.serialization.jackson216.migrations {
+    pekko.serialization.jackson3.migrations {
         # migrations for Java classes
         "jdoc.org.apache.pekko.serialization.jackson.v2b.ItemAdded" = "jdoc.org.apache.pekko.serialization.jackson.v2b.ItemAddedMigration"
         "jdoc.org.apache.pekko.serialization.jackson.v2c.ItemAdded" = "jdoc.org.apache.pekko.serialization.jackson.v2c.ItemAddedMigration"

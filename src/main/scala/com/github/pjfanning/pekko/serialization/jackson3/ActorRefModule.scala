@@ -11,43 +11,43 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-// FIXME maybe move many things to `com.github.pjfanning.pekko.serialization.jackson216.internal` package?
+// FIXME maybe move many things to `com.github.pjfanning.pekko.serialization.jackson3.internal` package?
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.JsonTokenId
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer
-import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.core.JsonTokenId
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.deser.std.StdScalarDeserializer
+import tools.jackson.databind.ser.std.StdScalarSerializer
 import org.apache.pekko
-import org.apache.pekko.serialization.jackson216.ActorSystemAccess
+import org.apache.pekko.serialization.jackson3.ActorSystemAccess
 import pekko.actor.ActorRef
 import pekko.annotation.InternalApi
 
 /**
  * INTERNAL API: Adds support for serializing and deserializing [[ActorRef]].
  */
-@InternalApi private[jackson216] trait ActorRefModule extends JacksonModule {
+@InternalApi private[jackson3] trait ActorRefModule extends SerializationModule {
   addSerializer(classOf[ActorRef], () => ActorRefSerializer.instance, () => ActorRefDeserializer.instance)
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object ActorRefSerializer {
+@InternalApi private[jackson3] object ActorRefSerializer {
   val instance: ActorRefSerializer = new ActorRefSerializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class ActorRefSerializer
+@InternalApi private[jackson3] class ActorRefSerializer
     extends StdScalarSerializer[ActorRef](classOf[ActorRef])
     with ActorSystemAccess {
-  override def serialize(value: ActorRef, jgen: JsonGenerator, provider: SerializerProvider): Unit = {
+  override def serialize(value: ActorRef, jgen: JsonGenerator, provider: SerializationContext): Unit = {
     val serializedActorRef = value.path.toSerializationFormatWithAddress(currentSystem().provider.getDefaultAddress)
     jgen.writeString(serializedActorRef)
   }
@@ -56,20 +56,20 @@ import pekko.annotation.InternalApi
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object ActorRefDeserializer {
+@InternalApi private[jackson3] object ActorRefDeserializer {
   val instance: ActorRefDeserializer = new ActorRefDeserializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class ActorRefDeserializer
+@InternalApi private[jackson3] class ActorRefDeserializer
     extends StdScalarDeserializer[ActorRef](classOf[ActorRef])
     with ActorSystemAccess {
 
   def deserialize(jp: JsonParser, ctxt: DeserializationContext): ActorRef = {
     if (jp.currentTokenId() == JsonTokenId.ID_STRING) {
-      val serializedActorRef = jp.getText()
+      val serializedActorRef = jp.getString()
       currentSystem().provider.resolveActorRef(serializedActorRef)
     } else
       ctxt.handleUnexpectedToken(handledType(), jp).asInstanceOf[ActorRef]

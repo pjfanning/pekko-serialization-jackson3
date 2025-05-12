@@ -11,16 +11,16 @@
  * Copyright (C) 2020-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.{IntNode, ObjectNode}
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.{IntNode, ObjectNode}
 
 object ScalaTestEventMigration {
   def upcastV1ToV2(root: ObjectNode): ObjectNode = {
-    root.set[JsonNode]("field1V2", root.get("field1"))
+    root.set("field1V2", root.get("field1"))
     root.remove("field1")
-    root.set[JsonNode]("field2", IntNode.valueOf(17))
+    root.set("field2", IntNode.valueOf(17))
     root
   }
 

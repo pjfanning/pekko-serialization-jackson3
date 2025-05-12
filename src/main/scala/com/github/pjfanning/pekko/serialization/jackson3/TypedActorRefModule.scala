@@ -11,17 +11,17 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.JsonTokenId
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer
-import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.core.JsonTokenId
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.deser.std.StdScalarDeserializer
+import tools.jackson.databind.ser.std.StdScalarSerializer
 import org.apache.pekko
-import org.apache.pekko.serialization.jackson216.ActorSystemAccess
+import org.apache.pekko.serialization.jackson3.ActorSystemAccess
 import pekko.actor.typed.ActorRef
 import pekko.actor.typed.ActorRefResolver
 import pekko.actor.typed.scaladsl.adapter._
@@ -30,24 +30,24 @@ import pekko.annotation.InternalApi
 /**
  * INTERNAL API: Adds support for serializing and deserializing [[pekko.actor.typed.ActorRef]].
  */
-@InternalApi private[jackson216] trait TypedActorRefModule extends JacksonModule {
+@InternalApi private[jackson3] trait TypedActorRefModule extends SerializationModule {
   addSerializer(classOf[ActorRef[_]], () => TypedActorRefSerializer.instance, () => TypedActorRefDeserializer.instance)
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object TypedActorRefSerializer {
+@InternalApi private[jackson3] object TypedActorRefSerializer {
   val instance: TypedActorRefSerializer = new TypedActorRefSerializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class TypedActorRefSerializer
+@InternalApi private[jackson3] class TypedActorRefSerializer
     extends StdScalarSerializer[ActorRef[_]](classOf[ActorRef[_]])
     with ActorSystemAccess {
-  override def serialize(value: ActorRef[_], jgen: JsonGenerator, provider: SerializerProvider): Unit = {
+  override def serialize(value: ActorRef[_], jgen: JsonGenerator, provider: SerializationContext): Unit = {
     val serializedActorRef = ActorRefResolver(currentSystem().toTyped).toSerializationFormat(value)
     jgen.writeString(serializedActorRef)
   }
@@ -56,20 +56,20 @@ import pekko.annotation.InternalApi
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object TypedActorRefDeserializer {
+@InternalApi private[jackson3] object TypedActorRefDeserializer {
   val instance: TypedActorRefDeserializer = new TypedActorRefDeserializer
 }
 
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] class TypedActorRefDeserializer
+@InternalApi private[jackson3] class TypedActorRefDeserializer
     extends StdScalarDeserializer[ActorRef[_]](classOf[ActorRef[_]])
     with ActorSystemAccess {
 
   def deserialize(jp: JsonParser, ctxt: DeserializationContext): ActorRef[_] = {
     if (jp.currentTokenId() == JsonTokenId.ID_STRING) {
-      val serializedActorRef = jp.getText()
+      val serializedActorRef = jp.getString()
       ActorRefResolver(currentSystem().toTyped).resolveActorRef(serializedActorRef)
     } else
       ctxt.handleUnexpectedToken(handledType(), jp).asInstanceOf[ActorRef[_]]

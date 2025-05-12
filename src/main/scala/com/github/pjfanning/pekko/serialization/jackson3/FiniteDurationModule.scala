@@ -11,19 +11,17 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package com.github.pjfanning.pekko.serialization.jackson216
+package com.github.pjfanning.pekko.serialization.jackson3
 
 import scala.concurrent.duration.FiniteDuration
-
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer
-import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer
-import com.fasterxml.jackson.datatype.jsr310.deser.DurationDeserializer
-import com.fasterxml.jackson.datatype.jsr310.ser.DurationSerializer
-
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.deser.std.StdScalarDeserializer
+import tools.jackson.databind.ext.javatime.deser.DurationDeserializer
+import tools.jackson.databind.ext.javatime.ser.DurationSerializer
+import tools.jackson.databind.ser.std.StdScalarSerializer
 import org.apache.pekko
 import pekko.annotation.InternalApi
 import JavaDurationConverters._
@@ -31,7 +29,7 @@ import JavaDurationConverters._
 /**
  * INTERNAL API: Adds support for serializing and deserializing [[FiniteDuration]].
  */
-@InternalApi private[jackson216] trait FiniteDurationModule extends JacksonModule {
+@InternalApi private[jackson3] trait FiniteDurationModule extends SerializationModule {
   addSerializer(
     classOf[FiniteDuration],
     () => FiniteDurationSerializer.instance,
@@ -41,16 +39,16 @@ import JavaDurationConverters._
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object FiniteDurationSerializer {
+@InternalApi private[jackson3] object FiniteDurationSerializer {
   val instance: FiniteDurationSerializer = new FiniteDurationSerializer
 }
 
 /**
  * INTERNAL API: Delegates to DurationSerializer in `jackson-modules-java8`
  */
-@InternalApi private[jackson216] class FiniteDurationSerializer
+@InternalApi private[jackson3] class FiniteDurationSerializer
     extends StdScalarSerializer[FiniteDuration](classOf[FiniteDuration]) {
-  override def serialize(value: FiniteDuration, jgen: JsonGenerator, provider: SerializerProvider): Unit = {
+  override def serialize(value: FiniteDuration, jgen: JsonGenerator, provider: SerializationContext): Unit = {
     DurationSerializer.INSTANCE.serialize(value.asJava, jgen, provider)
   }
 }
@@ -58,14 +56,14 @@ import JavaDurationConverters._
 /**
  * INTERNAL API
  */
-@InternalApi private[jackson216] object FiniteDurationDeserializer {
+@InternalApi private[jackson3] object FiniteDurationDeserializer {
   val instance: FiniteDurationDeserializer = new FiniteDurationDeserializer
 }
 
 /**
  * INTERNAL API: Delegates to DurationDeserializer in `jackson-modules-java8`
  */
-@InternalApi private[jackson216] class FiniteDurationDeserializer
+@InternalApi private[jackson3] class FiniteDurationDeserializer
     extends StdScalarDeserializer[FiniteDuration](classOf[FiniteDuration]) {
 
   def deserialize(jp: JsonParser, ctxt: DeserializationContext): FiniteDuration = {

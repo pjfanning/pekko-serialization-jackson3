@@ -11,7 +11,7 @@
  * Copyright (C) 2019-2022 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package org.apache.pekko.serialization.jackson216
+package org.apache.pekko.serialization.jackson3
 
 import org.apache.pekko.actor.ExtendedActorSystem
 import org.apache.pekko.annotation.InternalApi

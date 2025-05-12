@@ -1,4 +1,4 @@
-package org.apache.pekko.serialization.jackson216
+package org.apache.pekko.serialization.jackson3
 
 import org.apache.pekko.actor.ExtendedActorSystem
 import org.apache.pekko.annotation.InternalApi
