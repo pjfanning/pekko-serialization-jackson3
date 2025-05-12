@@ -209,6 +209,10 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       case (feature, value) => builder.configure(feature, value)
     }
 
+    getEnumFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
     getMapperFeatures(bindingName, config, objectMapperFactory).foreach {
       case (feature, value) => builder.configure(feature, value)
     }
@@ -231,6 +235,10 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     }
 
     getDateTimeFeatures(bindingName, config, objectMapperFactory).foreach {
+      case (feature, value) => builder.configure(feature, value)
+    }
+
+    getEnumFeatures(bindingName, config, objectMapperFactory).foreach {
       case (feature, value) => builder.configure(feature, value)
     }
 
@@ -269,6 +277,16 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
         case (enumName, value) => DateTimeFeature.valueOf(enumName) -> value
       }
     objectMapperFactory.overrideConfiguredDateTimeFeatures(bindingName, configuredDateTimeFeatures)
+  }
+
+  private def getEnumFeatures(bindingName: String,
+                              config: Config,
+                              objectMapperFactory: JacksonObjectMapperFactory): Seq[(EnumFeature, Boolean)] = {
+    val configuredEnumFeatures =
+      features(config, "enum-features").map {
+        case (enumName, value) => EnumFeature.valueOf(enumName) -> value
+      }
+    objectMapperFactory.overrideConfiguredEnumFeatures(bindingName, configuredEnumFeatures)
   }
 
   private def getMapperFeatures(bindingName: String,
@@ -546,12 +564,10 @@ class JacksonObjectMapperFactory {
   def newObjectMapperBuilder(jsonFactory: JsonFactory): JsonMapper.Builder =
     JsonMapper.builder(jsonFactory)
       .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
-      .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
 
   def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
     CBORMapper.builder(factory).configureForJackson2()
       .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
-      .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
@@ -622,6 +638,24 @@ class JacksonObjectMapperFactory {
                                           bindingName: String,
                                           configuredFeatures: immutable.Seq[(DateTimeFeature, Boolean)])
   : immutable.Seq[(DateTimeFeature, Boolean)] =
+    configuredFeatures
+
+  /**
+   * After construction of the `ObjectMapper` the configured enum features are applied to
+   * the mapper. These features can be amended programatically by overriding this method and
+   * return the features that are to be applied to the `ObjectMapper`.
+   *
+   * When implementing a `JacksonObjectMapperFactory` with Java the `immutable.Seq` can be
+   * created with [[pekko.japi.Util.immutableSeq]].
+   *
+   * @param bindingName bindingName name of this `ObjectMapper`
+   * @param configuredFeatures the list of `DateTimeFeature` that were configured in
+   *                           `pekko.serialization.jackson3.enum-features`
+   */
+  def overrideConfiguredEnumFeatures(
+                                      bindingName: String,
+                                      configuredFeatures: immutable.Seq[(EnumFeature, Boolean)])
+  : immutable.Seq[(EnumFeature, Boolean)] =
     configuredFeatures
 
   /**
