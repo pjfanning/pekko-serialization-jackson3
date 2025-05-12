@@ -19,14 +19,14 @@ import scala.collection.immutable
 import scala.collection.JavaConverters._
 import scala.compat.java8.OptionConverters._
 import scala.util.{Failure, Success}
-
 import com.fasterxml.jackson.annotation.{JsonAutoDetect, PropertyAccessor}
 import com.typesafe.config.Config
 import tools.jackson.core.{StreamReadConstraints, StreamReadFeature, StreamWriteConstraints, StreamWriteFeature}
 import tools.jackson.core.json.{JsonFactory, JsonReadFeature, JsonWriteFeature}
 import tools.jackson.core.util.{BufferRecycler, JsonRecyclerPools, RecyclerPool}
 import tools.jackson.databind.{DeserializationFeature, JacksonModule, MapperFeature, ObjectMapper, SerializationFeature}
-import tools.jackson.databind.cfg.DateTimeFeature
+import tools.jackson.databind.cfg.{DateTimeFeature, MapperBuilder}
+import tools.jackson.databind.introspect.VisibilityChecker
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.dataformat.cbor.{CBORFactory, CBORMapper}
 import org.apache.pekko
@@ -191,12 +191,10 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
   }
 
   private def configureObjectMapperFeatures(
-      bindingName: String,
-      objectMapper: ObjectMapper,
-      objectMapperFactory: JacksonObjectMapperFactory,
-      config: Config): ObjectMapper = {
-
-    val builder = objectMapper.rebuild().asInstanceOf[JsonMapper.Builder]
+          bindingName: String,
+          builder: JsonMapper.Builder,
+          objectMapperFactory: JacksonObjectMapperFactory,
+          config: Config): JsonMapper.Builder = {
 
     getSerializationFeatures(bindingName, config, objectMapperFactory).foreach {
       case (feature, value) => builder.configure(feature, value)
@@ -214,16 +212,14 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       case (feature, value) => builder.configure(feature, value)
     }
 
-    builder.build()
+    builder
   }
 
   private def configureCBORMapperFeatures(
                                            bindingName: String,
-                                           mapper: CBORMapper,
+                                           builder: CBORMapper.Builder,
                                            objectMapperFactory: JacksonObjectMapperFactory,
-                                           config: Config): CBORMapper = {
-
-    val builder = mapper.rebuild()
+                                           config: Config): CBORMapper.Builder = {
 
     getSerializationFeatures(bindingName, config, objectMapperFactory).foreach {
       case (feature, value) => builder.configure(feature, value)
@@ -241,7 +237,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       case (feature, value) => builder.configure(feature, value)
     }
 
-    builder.build()
+    builder
   }
 
   private def getSerializationFeatures(bindingName: String,
@@ -284,14 +280,11 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     objectMapperFactory.overrideConfiguredMapperFeatures(bindingName, configuredMapperFeatures)
   }
 
-  /*
   private def configureObjectVisibility(
       bindingName: String,
-      objectMapper: ObjectMapper,
+      builder: MapperBuilder[ObjectMapper, _],
       objectMapperFactory: JacksonObjectMapperFactory,
-      config: Config): ObjectMapper = {
-
-    val builder = objectMapper.rebuild()
+      config: Config): MapperBuilder[ObjectMapper, _] = {
 
     val configuredVisibility: immutable.Seq[(PropertyAccessor, JsonAutoDetect.Visibility)] =
       configPairs(config, "visibility").map {
@@ -301,22 +294,21 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     val visibility =
       objectMapperFactory.overrideConfiguredVisibility(bindingName, configuredVisibility)
     visibility.foreach {
-      case (property, visibility) => builder.changeDefaultVisibility(property, visibility)
+      case (property, visibility) =>
+        builder.changeDefaultVisibility((vc: VisibilityChecker) => {
+          vc.withVisibility(property, visibility)
+        })
     }
-
-    builder.build()
+    builder
   }
-  */
 
   private def configureObjectMapperModules(
       bindingName: String,
-      objectMapper: ObjectMapper,
+      builder: MapperBuilder[ObjectMapper, _],
       objectMapperFactory: JacksonObjectMapperFactory,
       config: Config,
       dynamicAccess: DynamicAccess,
-      log: Option[LoggingAdapter]): ObjectMapper = {
-
-    val builder = objectMapper.rebuild()
+      log: Option[LoggingAdapter]): MapperBuilder[ObjectMapper, _] = {
 
     val configuredModules = config.getStringList("jackson-modules").asScala
     val modules = configuredModules.flatMap { fqcn =>
@@ -343,7 +335,12 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       log.foreach(_.debug("Registered Jackson module [{}]", module.getClass.getName))
     }
 
-    builder.build()
+    builder
+  }
+
+  private def configPairs(config: Config, section: String): immutable.Seq[(String, String)] = {
+    val cfg = config.getConfig(section)
+    cfg.root.keySet().asScala.map(key => key -> cfg.getString(key)).toList
   }
 
   /**
@@ -361,11 +358,13 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       log: Option[LoggingAdapter]): ObjectMapper = {
 
     val configuredJsonFactory = createJsonFactory(bindingName, objectMapperFactory, config, jsonFactory)
-    var mapper = objectMapperFactory.newObjectMapper(configuredJsonFactory)
-    mapper = configureObjectMapperFeatures(bindingName, mapper, objectMapperFactory, config)
-    mapper = configureObjectMapperModules(bindingName, mapper, objectMapperFactory, config, dynamicAccess, log)
-    // configureObjectVisibility(bindingName, mapper, objectMapperFactory, config)
-    mapper
+    val builder = objectMapperFactory.newObjectMapperBuilder(configuredJsonFactory)
+    configureObjectMapperFeatures(bindingName, builder, objectMapperFactory, config)
+    configureObjectMapperModules(bindingName, builder.asInstanceOf[MapperBuilder[ObjectMapper, _]],
+      objectMapperFactory, config, dynamicAccess, log)
+    configureObjectVisibility(bindingName, builder.asInstanceOf[MapperBuilder[ObjectMapper, _]],
+      objectMapperFactory, config)
+    builder.build()
   }
 
   def createCBORMapper(
@@ -377,12 +376,14 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
       log: Option[LoggingAdapter]): ObjectMapper = {
 
     val configuredJsonFactory = createCBORFactory(bindingName, objectMapperFactory, config, streamFactory)
-    var mapper = objectMapperFactory.newCBORMapper(configuredJsonFactory)
-    mapper = configureCBORMapperFeatures(bindingName, mapper, objectMapperFactory, config)
-    mapper = configureObjectMapperModules(bindingName, mapper, objectMapperFactory, config,
-      dynamicAccess, log).asInstanceOf[CBORMapper]
-    // configureObjectVisibility(bindingName, mapper, objectMapperFactory, config)
-    mapper
+    val builder = objectMapperFactory.newCBORMapperBuilder(configuredJsonFactory)
+    configureCBORMapperFeatures(bindingName, builder, objectMapperFactory, config)
+    configureObjectMapperModules(bindingName, builder.asInstanceOf[MapperBuilder[ObjectMapper, _]],
+      objectMapperFactory, config,
+      dynamicAccess, log)
+    configureObjectVisibility(bindingName, builder.asInstanceOf[MapperBuilder[ObjectMapper, _]],
+      objectMapperFactory, config)
+    builder.build()
   }
 
   private def isModuleEnabled(fqcn: String, dynamicAccess: DynamicAccess): Boolean =
@@ -537,11 +538,11 @@ class JacksonObjectMapperFactory {
 
   //TODO fix scaladoc
 
-  def newObjectMapper(jsonFactory: JsonFactory): ObjectMapper =
-    JsonMapper.builder(jsonFactory).build()
+  def newObjectMapperBuilder(jsonFactory: JsonFactory): JsonMapper.Builder =
+    JsonMapper.builder(jsonFactory)
 
-  def newCBORMapper(factory: CBORFactory): CBORMapper =
-    CBORMapper.builder(factory).build()
+  def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
+    CBORMapper.builder(factory)
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to

@@ -42,7 +42,7 @@ import pekko.annotation.InternalApi
     override def findSerializer(
         config: SerializationConfig,
         javaType: JavaType,
-        beanDesc: BeanDescription,
+        beanDesc: BeanDescription.Supplier,
         formatOverrides: JsonFormat.Value): ValueSerializer[_] = {
       if (clazz.isAssignableFrom(javaType.getRawClass))
         deserializer()
@@ -57,7 +57,7 @@ import pekko.annotation.InternalApi
     override def findBeanDeserializer(
         javaType: JavaType,
         config: DeserializationConfig,
-        beanDesc: BeanDescription): ValueDeserializer[_] = {
+        beanDesc: BeanDescription.Supplier): ValueDeserializer[_] = {
       if (clazz.isAssignableFrom(javaType.getRawClass))
         serializer()
       else
