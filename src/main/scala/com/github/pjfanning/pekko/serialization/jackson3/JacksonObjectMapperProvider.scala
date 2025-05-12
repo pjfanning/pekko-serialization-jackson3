@@ -565,7 +565,7 @@ class JacksonObjectMapperFactory {
     JsonMapper.builder(jsonFactory)
 
   def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
-    CBORMapper.builder(factory).configureForJackson2()
+    CBORMapper.builder(factory)
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
