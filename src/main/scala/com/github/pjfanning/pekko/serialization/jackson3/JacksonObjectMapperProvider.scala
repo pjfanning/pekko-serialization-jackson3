@@ -123,7 +123,6 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     }
 
     factoryBuilder
-      .configureForJackson2()
       .streamReadConstraints(streamReadConstraints)
       .streamWriteConstraints(streamWriteConstraints)
       .recyclerPool(getBufferRecyclerPool(config))
@@ -176,7 +175,6 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     }
 
     factoryBuilder
-      .configureForJackson2()
       .streamReadConstraints(streamReadConstraints)
       .streamWriteConstraints(streamWriteConstraints)
       .recyclerPool(getBufferRecyclerPool(config))
