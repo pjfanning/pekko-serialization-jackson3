@@ -1,11 +1,11 @@
 val scala12Version = "2.12.20"
 val scala13Version = "2.13.16"
-val scala3Version = "3.3.5"
+val scala3Version = "3.3.6"
 ThisBuild / scalaVersion := scala13Version
 ThisBuild / crossScalaVersions := Seq(scala12Version, scala13Version, scala3Version)
 
 val pekkoVersion = "1.0.3"
-val jacksonVersion = "3.0.0-rc3"
+val jacksonVersion = "3.0.0-rc4"
 
 lazy val root = (project in file("."))
   .settings(
