@@ -547,23 +547,15 @@ class JacksonObjectMapperFactory {
     JsonMapper.builder(jsonFactory)
       .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
       .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
-      .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
       .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-      .disable(EnumFeature.READ_ENUMS_USING_TO_STRING)
-      .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
       .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS, DateTimeFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
-      .disable(EnumFeature.WRITE_ENUMS_USING_TO_STRING)
 
   def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
     CBORMapper.builder(factory).configureForJackson2()
       .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
       .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
-      .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
       .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-      .disable(EnumFeature.READ_ENUMS_USING_TO_STRING)
-      .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
       .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS, DateTimeFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
-      .disable(EnumFeature.WRITE_ENUMS_USING_TO_STRING)
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
