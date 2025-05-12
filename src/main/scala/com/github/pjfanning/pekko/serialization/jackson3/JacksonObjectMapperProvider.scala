@@ -19,6 +19,7 @@ import scala.collection.immutable
 import scala.collection.JavaConverters._
 import scala.compat.java8.OptionConverters._
 import scala.util.{Failure, Success}
+
 import com.fasterxml.jackson.annotation.{JsonAutoDetect, PropertyAccessor}
 import com.typesafe.config.Config
 import tools.jackson.core.{StreamReadConstraints, StreamReadFeature, StreamWriteConstraints, StreamWriteFeature}
@@ -291,15 +292,19 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
         case (property, visibility) =>
           PropertyAccessor.valueOf(property) -> JsonAutoDetect.Visibility.valueOf(visibility)
       }
-    val visibility =
+    val visibilitySettings =
       objectMapperFactory.overrideConfiguredVisibility(bindingName, configuredVisibility)
-    visibility.foreach {
-      case (property, visibility) =>
-        builder.changeDefaultVisibility((vc: VisibilityChecker) => {
-          vc.withVisibility(property, visibility)
-        })
+    if(visibilitySettings.isEmpty) {
+      builder
+    } else {
+      builder.changeDefaultVisibility((vc: VisibilityChecker) => {
+        var localVc = vc
+        visibilitySettings.foreach {
+          case (property, visibility) => localVc = localVc.withVisibility(property, visibility)
+        }
+        localVc
+      }).asInstanceOf[MapperBuilder[ObjectMapper, _]]
     }
-    builder
   }
 
   private def configureObjectMapperModules(
