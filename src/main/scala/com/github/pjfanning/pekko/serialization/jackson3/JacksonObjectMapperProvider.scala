@@ -563,11 +563,9 @@ class JacksonObjectMapperFactory {
 
   def newObjectMapperBuilder(jsonFactory: JsonFactory): JsonMapper.Builder =
     JsonMapper.builder(jsonFactory)
-      .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
 
   def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
     CBORMapper.builder(factory).configureForJackson2()
-      .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
