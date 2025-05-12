@@ -547,15 +547,11 @@ class JacksonObjectMapperFactory {
     JsonMapper.builder(jsonFactory)
       .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
       .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
-      .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-      .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS, DateTimeFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
 
   def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
     CBORMapper.builder(factory).configureForJackson2()
       .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
       .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
-      .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-      .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS, DateTimeFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
