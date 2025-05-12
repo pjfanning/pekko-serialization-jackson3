@@ -123,6 +123,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     }
 
     factoryBuilder
+      .configureForJackson2()
       .streamReadConstraints(streamReadConstraints)
       .streamWriteConstraints(streamWriteConstraints)
       .recyclerPool(getBufferRecyclerPool(config))
@@ -175,6 +176,7 @@ object JacksonObjectMapperProvider extends ExtensionId[JacksonObjectMapperProvid
     }
 
     factoryBuilder
+      .configureForJackson2()
       .streamReadConstraints(streamReadConstraints)
       .streamWriteConstraints(streamWriteConstraints)
       .recyclerPool(getBufferRecyclerPool(config))
@@ -544,10 +546,10 @@ class JacksonObjectMapperFactory {
   //TODO fix scaladoc
 
   def newObjectMapperBuilder(jsonFactory: JsonFactory): JsonMapper.Builder =
-    JsonMapper.builder(jsonFactory)
+    JsonMapper.builder(jsonFactory).configureForJackson2()
 
   def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
-    CBORMapper.builder(factory)
+    CBORMapper.builder(factory).configureForJackson2()
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
