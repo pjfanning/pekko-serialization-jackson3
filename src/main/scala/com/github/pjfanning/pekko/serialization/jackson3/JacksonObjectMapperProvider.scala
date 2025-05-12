@@ -26,7 +26,7 @@ import tools.jackson.core.{StreamReadConstraints, StreamReadFeature, StreamWrite
 import tools.jackson.core.json.{JsonFactory, JsonReadFeature, JsonWriteFeature}
 import tools.jackson.core.util.{BufferRecycler, JsonRecyclerPools, RecyclerPool}
 import tools.jackson.databind.{DeserializationFeature, JacksonModule, MapperFeature, ObjectMapper, SerializationFeature}
-import tools.jackson.databind.cfg.{DateTimeFeature, MapperBuilder}
+import tools.jackson.databind.cfg.{DateTimeFeature, EnumFeature, MapperBuilder}
 import tools.jackson.databind.introspect.VisibilityChecker
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.dataformat.cbor.{CBORFactory, CBORMapper}
@@ -544,10 +544,26 @@ class JacksonObjectMapperFactory {
   //TODO fix scaladoc
 
   def newObjectMapperBuilder(jsonFactory: JsonFactory): JsonMapper.Builder =
-    JsonMapper.builder(jsonFactory).configureForJackson2()
+    JsonMapper.builder(jsonFactory)
+      .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
+      .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+      .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
+      .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+      .disable(EnumFeature.READ_ENUMS_USING_TO_STRING)
+      .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+      .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS, DateTimeFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
+      .disable(EnumFeature.WRITE_ENUMS_USING_TO_STRING)
 
   def newCBORMapperBuilder(factory: CBORFactory): CBORMapper.Builder =
     CBORMapper.builder(factory).configureForJackson2()
+      .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
+      .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+      .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
+      .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+      .disable(EnumFeature.READ_ENUMS_USING_TO_STRING)
+      .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+      .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS, DateTimeFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
+      .disable(EnumFeature.WRITE_ENUMS_USING_TO_STRING)
 
   /**
    * After construction of the `ObjectMapper` the configured modules are added to
