@@ -2,13 +2,11 @@
 
 Jackson 3 equivalent of [pekko-serialization-jackson](https://pekko.apache.org/docs/pekko/current/serialization-jackson.html) which uses Jackson 2.17 (Pekko 1.1).
 
-See also https://github.com/pjfanning/pekko-serialization-jackson3
-
-Jackson 3 is still in RC and not yet released. The package name in Jackson3 is `tools.jackson` instead of `com.fasterxml.jackson`.
+The package name in Jackson3 is `tools.jackson` instead of `com.fasterxml.jackson`.
 The default configuration has changed a lot compared with Jackson2.
 
 ## sbt
 
 ```
-libraryDependencies += "com.github.pjfanning" %% "pekko-serialization-jackson3" % "<version>"
+libraryDependencies += "com.github.pjfanning" %% "pekko-serialization-jackson3" % "1.0.0"
 ```
