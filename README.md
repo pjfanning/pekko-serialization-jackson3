@@ -10,3 +10,7 @@ The default configuration has changed a lot compared with Jackson2.
 ```
 libraryDependencies += "com.github.pjfanning" %% "pekko-serialization-jackson3" % "1.0.0"
 ```
+
+## Configuration
+
+The default config is in [reference.conf](https://github.com/pjfanning/pekko-serialization-jackson3/blob/origin/main/src/main/resources/reference.conf). You can override these configs in your config files (e.g. application.conf). 
