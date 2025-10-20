@@ -44,7 +44,7 @@ import JavaDurationConverters._
 }
 
 /**
- * INTERNAL API: Delegates to DurationSerializer in `jackson-modules-java8`
+ * INTERNAL API: Delegates to DurationSerializer in `jackson-databind`
  */
 @InternalApi private[jackson3] class FiniteDurationSerializer
     extends StdScalarSerializer[FiniteDuration](classOf[FiniteDuration]) {
@@ -61,7 +61,7 @@ import JavaDurationConverters._
 }
 
 /**
- * INTERNAL API: Delegates to DurationDeserializer in `jackson-modules-java8`
+ * INTERNAL API: Delegates to DurationDeserializer in `jackson-databind`
  */
 @InternalApi private[jackson3] class FiniteDurationDeserializer
     extends StdScalarDeserializer[FiniteDuration](classOf[FiniteDuration]) {
