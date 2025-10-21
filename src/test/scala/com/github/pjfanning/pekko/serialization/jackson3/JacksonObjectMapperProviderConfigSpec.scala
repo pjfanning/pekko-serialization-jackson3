@@ -19,6 +19,7 @@ class JacksonObjectMapperProviderConfigSpec extends TestKit(
                                  |     max-string-length = 12345
                                  |     max-name-length = 234
                                  |     max-document-length = 567890
+                                 |     max-token-count = 4567
                                  |   }
                                  |   write {
                                  |     max-nesting-depth = 800
@@ -47,6 +48,7 @@ class JacksonObjectMapperProviderConfigSpec extends TestKit(
       src.getMaxNameLength shouldEqual 234
       src.getMaxStringLength shouldEqual 12345
       src.getMaxDocumentLength shouldEqual 567890
+      src.getMaxTokenCount shouldEqual 4567
 
       swc.getMaxNestingDepth shouldEqual 800
     }
