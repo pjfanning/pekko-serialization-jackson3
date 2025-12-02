@@ -8,7 +8,7 @@ The default configuration has changed a lot compared with Jackson2.
 ## sbt
 
 ```
-libraryDependencies += "com.github.pjfanning" %% "pekko-serialization-jackson3" % "1.0.0"
+libraryDependencies += "com.github.pjfanning" %% "pekko-serialization-jackson3" % "1.1.0"
 ```
 
 ## Configuration
