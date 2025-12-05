@@ -19,7 +19,7 @@ lazy val root = (project in file("."))
       "tools.jackson.core" % "jackson-core" % jacksonVersion,
       "tools.jackson.dataformat" % "jackson-dataformat-cbor" % jacksonVersion,
       "tools.jackson.module" %% "jackson-module-scala" % jacksonVersion,
-      "at.yawk.lz4" % "lz4-java" % "1.9.0",
+      "at.yawk.lz4" % "lz4-java" % "1.10.1",
       "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
       "org.apache.pekko" %% "pekko-testkit" % pekkoVersion % Test,
       "org.scalatest" %% "scalatest" % "3.2.19" % Test,
